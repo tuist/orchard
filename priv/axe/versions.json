@@ -1,0 +1,12 @@
+{
+  "1.0.0": {
+    "macOS-arm64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.0.0/AXe-macOS-v1.0.0.tar.gz",
+      "checksum": null
+    },
+    "macOS-x86_64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.0.0/AXe-macOS-v1.0.0.tar.gz",
+      "checksum": null
+    }
+  }
+}
