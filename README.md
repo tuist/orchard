@@ -1,5 +1,11 @@
 # Orchard
 
+[![Hex.pm](https://img.shields.io/hexpm/v/orchard.svg)](https://hex.pm/packages/orchard)
+[![Documentation](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/orchard)
+[![License](https://img.shields.io/hexpm/l/orchard.svg)](https://github.com/tuist/orchard/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/hexpm/dt/orchard.svg)](https://hex.pm/packages/orchard)
+[![Elixir](https://img.shields.io/badge/elixir-%E2%89%A5%201.14-purple.svg)](https://elixir-lang.org/)
+
 An Elixir package for managing Apple simulators with automatic lifecycle management using OTP supervision trees. Built on top of [AXe](https://github.com/cameroncooke/AXe) for UI automation and Apple's simctl for simulator control.
 
 ## Requirements
