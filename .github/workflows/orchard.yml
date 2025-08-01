@@ -2,9 +2,9 @@ name: Orchard CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -13,69 +13,100 @@ jobs:
   build:
     name: Build
     runs-on: macos-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup mise
-      uses: jdx/mise-action@v2
-      with:
-        version: latest
-    
-    - name: Install tools with mise
-      run: mise install
-    
-    - name: Restore dependencies cache
-      uses: actions/cache@v4
-      with:
-        path: deps
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-mix-
-    
-    - name: Install dependencies
-      run: mise exec -- mix deps.get
-    
-    - name: Check formatting
-      run: mise exec -- mix format --check-formatted
-    
-    - name: Compile with warnings as errors
-      run: mise exec -- mix compile --warnings-as-errors
-    
-    - name: Check documentation generation
-      run: mise exec -- mix docs
-    
-    - name: Run Credo
-      run: mise exec -- mix credo --strict
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mise exec -- mix deps.get
+
+      - name: Check formatting
+        run: mise exec -- mix format --check-formatted
+
+      - name: Compile with warnings as errors
+        run: mise exec -- mix compile --warnings-as-errors
 
   test:
     name: Test
     runs-on: macos-latest
     needs: build
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup mise
-      uses: jdx/mise-action@v2
-      with:
-        version: latest
-    
-    - name: Install tools with mise
-      run: mise install
-    
-    - name: Restore dependencies cache
-      uses: actions/cache@v4
-      with:
-        path: deps
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-mix-
-    
-    - name: Install dependencies
-      run: mise exec -- mix deps.get
-    
-    - name: Run tests
-      run: mise exec -- mix test
-    
-    - name: Run Dialyzer
-      run: mise exec -- mix dialyzer
-      continue-on-error: true  # Dialyzer might need initial PLT building
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mise exec -- mix deps.get
+
+      - name: Run tests
+        run: mise exec -- mix test
+
+      - name: Run Dialyzer
+        run: mise exec -- mix dialyzer
+        continue-on-error: true # Dialyzer might need initial PLT building
+
+  credo:
+    name: Credo
+    runs-on: macos-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mise exec -- mix deps.get
+
+      - name: Run Credo strict mode
+        run: mise exec -- mix credo --strict
+
+  docs:
+    name: Documentation
+    runs-on: macos-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mise exec -- mix deps.get
+
+      - name: Generate documentation
+        run: mise exec -- mix docs
+
+      - name: Check documentation can be built
+        run: test -d doc/
