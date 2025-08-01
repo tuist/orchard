@@ -102,7 +102,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Generate release notes for the specific version
-          RELEASE_NOTES=$(git cliff --latest --strip all)
+          # Use --tag to get notes for a specific version without [Unreleased] header
+          RELEASE_NOTES=$(git cliff --tag "${{ steps.version.outputs.version }}" --latest --strip header)
           
           # Create release using GitHub CLI
           gh release create "${{ steps.version.outputs.version }}" \
