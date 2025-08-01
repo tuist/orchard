@@ -1,5 +1,6 @@
 # Orchard
 
+[![CI](https://github.com/tuist/orchard/actions/workflows/orchard.yml/badge.svg)](https://github.com/tuist/orchard/actions/workflows/orchard.yml)
 [![Hex.pm](https://img.shields.io/hexpm/v/orchard.svg)](https://hex.pm/packages/orchard)
 [![Documentation](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/orchard)
 [![License](https://img.shields.io/hexpm/l/orchard.svg)](https://github.com/tuist/orchard/blob/main/LICENSE)
