@@ -55,7 +55,7 @@ defmodule Orchard.Config do
   def executable_path(version \\ nil) do
     version = version || configured_version()
     arch = architecture()
-    
+
     if arch do
       Application.app_dir(:orchard, "priv/axe/#{arch}/#{version}/AXe")
     else

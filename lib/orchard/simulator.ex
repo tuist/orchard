@@ -1,7 +1,7 @@
 defmodule Orchard.Simulator do
   @moduledoc """
   Module for managing iOS simulators using AXe CLI.
-  
+
   This module provides functions to list, boot, and manage simulators.
   When a simulator is booted, a SimulatorServer GenServer is started
   to manage its lifecycle.
@@ -21,7 +21,7 @@ defmodule Orchard.Simulator do
 
   @doc """
   Lists all available simulators.
-  
+
   Returns a list of simulator structs.
   """
   @spec list() :: {:ok, [t()]} | {:error, String.t()}
@@ -66,10 +66,11 @@ defmodule Orchard.Simulator do
   def find(identifier) do
     case list() do
       {:ok, simulators} ->
-        simulator = Enum.find(simulators, fn sim ->
-          sim.name == identifier || sim.udid == identifier
-        end)
-        
+        simulator =
+          Enum.find(simulators, fn sim ->
+            sim.name == identifier || sim.udid == identifier
+          end)
+
         if simulator do
           {:ok, simulator}
         else
@@ -91,13 +92,13 @@ defmodule Orchard.Simulator do
       {:ok, _pid} ->
         # Server already running, just boot it
         SimulatorServer.boot(simulator.udid)
-        
+
       {:error, :not_found} ->
         # Start the server first
         case SimulatorSupervisor.start_simulator(simulator) do
           {:ok, _pid} ->
             SimulatorServer.boot(simulator.udid)
-            
+
           {:error, reason} ->
             {:error, "Failed to start simulator server: #{inspect(reason)}"}
         end
@@ -119,7 +120,7 @@ defmodule Orchard.Simulator do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->
         SimulatorServer.shutdown(udid)
-        
+
       {:error, :not_found} ->
         {:error, "Simulator server not running"}
     end
@@ -139,7 +140,7 @@ defmodule Orchard.Simulator do
   def erase(%__MODULE__{udid: udid}) do
     # Stop the server if running
     SimulatorSupervisor.stop_simulator(udid)
-    
+
     with :ok <- Downloader.ensure_available() do
       case MuonTrap.cmd("xcrun", ["simctl", "erase", udid]) do
         {_, 0} ->
@@ -166,7 +167,7 @@ defmodule Orchard.Simulator do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->
         SimulatorServer.install_app(udid, app_path)
-        
+
       {:error, :not_found} ->
         {:error, "Simulator server not running"}
     end
@@ -196,7 +197,7 @@ defmodule Orchard.Simulator do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->
         SimulatorServer.launch_app(udid, bundle_id, args)
-        
+
       {:error, :not_found} ->
         {:error, "Simulator server not running"}
     end
@@ -210,7 +211,7 @@ defmodule Orchard.Simulator do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->
         SimulatorServer.screenshot(udid, output_path)
-        
+
       {:error, :not_found} ->
         {:error, "Simulator server not running"}
     end
@@ -223,7 +224,8 @@ defmodule Orchard.Simulator do
   @spec start_recording(t(), String.t()) :: {:ok, pid()} | {:error, String.t()}
   def start_recording(%__MODULE__{udid: udid}, output_path) do
     with :ok <- Downloader.ensure_available() do
-      {:ok, _pid} = MuonTrap.Daemon.start_link("xcrun", ["simctl", "io", udid, "recordVideo", output_path])
+      {:ok, _pid} =
+        MuonTrap.Daemon.start_link("xcrun", ["simctl", "io", udid, "recordVideo", output_path])
     end
   rescue
     e -> {:error, "Failed to start recording: #{inspect(e)}"}
@@ -256,12 +258,12 @@ defmodule Orchard.Simulator do
           device_type: String.trim(device_type),
           runtime: String.trim(runtime)
         }
-        
+
       _ ->
         nil
     end
   end
-  
+
   @doc """
   UI automation functions using AXe
   """
@@ -269,22 +271,22 @@ defmodule Orchard.Simulator do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->
         SimulatorServer.tap(udid, x, y)
-        
+
       {:error, :not_found} ->
         {:error, "Simulator server not running"}
     end
   end
-  
+
   def type_text(%__MODULE__{udid: udid}, text) do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->
         SimulatorServer.type_text(udid, text)
-        
+
       {:error, :not_found} ->
         {:error, "Simulator server not running"}
     end
   end
-  
+
   @doc """
   Gets UI hierarchy description from AXe
   """
@@ -293,7 +295,7 @@ defmodule Orchard.Simulator do
       case MuonTrap.cmd(Config.axe_cmd(), ["describe-ui", "--udid", udid]) do
         {output, 0} ->
           {:ok, output}
-          
+
         {error, _} ->
           {:error, "Failed to describe UI: #{error}"}
       end

@@ -43,9 +43,10 @@ defmodule Mix.Tasks.Orchard.Download do
   def run(args) do
     Application.ensure_all_started(:orchard)
 
-    {opts, _, _} = OptionParser.parse(args,
-      strict: [version: :string, force: :boolean]
-    )
+    {opts, _, _} =
+      OptionParser.parse(args,
+        strict: [version: :string, force: :boolean]
+      )
 
     Mix.shell().info("Orchard AXe Downloader")
     Mix.shell().info("====================")

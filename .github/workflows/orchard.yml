@@ -27,13 +27,13 @@ jobs:
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
-        run: mise exec -- mix deps.get
+        run: mix deps.get
 
       - name: Check formatting
-        run: mise exec -- mix format --check-formatted
+        run: mix format --check-formatted
 
       - name: Compile with warnings as errors
-        run: mise exec -- mix compile --warnings-as-errors
+        run: mix compile --warnings-as-errors
 
   test:
     name: Test
@@ -53,13 +53,13 @@ jobs:
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
-        run: mise exec -- mix deps.get
+        run: mix deps.get
 
       - name: Run tests
-        run: mise exec -- mix test
+        run: mix test
 
       - name: Run Dialyzer
-        run: mise exec -- mix dialyzer
+        run: mix dialyzer
         continue-on-error: true # Dialyzer might need initial PLT building
 
   credo:
@@ -80,10 +80,10 @@ jobs:
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
-        run: mise exec -- mix deps.get
+        run: mix deps.get
 
       - name: Run Credo strict mode
-        run: mise exec -- mix credo --strict
+        run: mix credo --strict
 
   docs:
     name: Documentation
@@ -103,10 +103,10 @@ jobs:
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
-        run: mise exec -- mix deps.get
+        run: mix deps.get
 
       - name: Generate documentation
-        run: mise exec -- mix docs
+        run: mix docs
 
       - name: Check documentation can be built
         run: test -d doc/

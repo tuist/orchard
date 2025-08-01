@@ -18,7 +18,7 @@ defmodule Orchard.Device do
 
   @doc """
   Lists all connected devices.
-  
+
   Returns a list of device structs.
   """
   @spec list() :: {:ok, [t()]} | {:error, String.t()}
@@ -48,10 +48,11 @@ defmodule Orchard.Device do
   def find(identifier) do
     case list() do
       {:ok, devices} ->
-        device = Enum.find(devices, fn d ->
-          d.name == identifier || d.udid == identifier
-        end)
-        
+        device =
+          Enum.find(devices, fn d ->
+            d.name == identifier || d.udid == identifier
+          end)
+
         if device do
           {:ok, device}
         else
