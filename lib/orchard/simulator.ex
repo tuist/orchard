@@ -7,7 +7,7 @@ defmodule Orchard.Simulator do
   to manage its lifecycle.
   """
 
-  alias Orchard.{Config, CpuInfo, Downloader, SimulatorSupervisor, SimulatorServer}
+  alias Orchard.{Config, CpuInfo, Downloader, SimulatorServer, SimulatorSupervisor}
 
   defstruct [:name, :udid, :state, :device_type, :runtime]
 
@@ -26,9 +26,7 @@ defmodule Orchard.Simulator do
   """
   @spec list() :: {:ok, [t()]} | {:error, String.t()}
   def list do
-    if not CpuInfo.supported_platform?() do
-      {:error, CpuInfo.unsupported_platform_error()}
-    else
+    if CpuInfo.supported_platform?() do
       with :ok <- Downloader.ensure_available() do
         case MuonTrap.cmd(Config.axe_cmd(), ["list-simulators"]) do
           {output, 0} ->
@@ -39,6 +37,8 @@ defmodule Orchard.Simulator do
             {:error, "Failed to list simulators: #{error}"}
         end
       end
+    else
+      {:error, CpuInfo.unsupported_platform_error()}
     end
   rescue
     _ -> {:error, "Failed to execute AXe command"}

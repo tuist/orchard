@@ -23,9 +23,7 @@ defmodule Orchard.Device do
   """
   @spec list() :: {:ok, [t()]} | {:error, String.t()}
   def list do
-    if not CpuInfo.supported_platform?() do
-      {:error, CpuInfo.unsupported_platform_error()}
-    else
+    if CpuInfo.supported_platform?() do
       with :ok <- Downloader.ensure_available() do
         case System.cmd(Config.axe_cmd(), ["device", "list", "--json"]) do
           {output, 0} ->
@@ -36,6 +34,8 @@ defmodule Orchard.Device do
             {:error, "Failed to list devices: #{error}"}
         end
       end
+    else
+      {:error, CpuInfo.unsupported_platform_error()}
     end
   rescue
     _ -> {:error, "Failed to execute AXe command"}

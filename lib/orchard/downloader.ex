@@ -12,9 +12,7 @@ defmodule Orchard.Downloader do
   """
   @spec download(keyword()) :: :ok | {:error, String.t()}
   def download(opts \\ []) do
-    if not CpuInfo.supported_platform?() do
-      {:error, CpuInfo.unsupported_platform_error()}
-    else
+    if CpuInfo.supported_platform?() do
       version = Keyword.get(opts, :version, Config.configured_version())
       force = Keyword.get(opts, :force, false)
 
@@ -34,6 +32,8 @@ defmodule Orchard.Downloader do
           Logger.error("Failed to download AXe: #{reason}")
           error
       end
+    else
+      {:error, CpuInfo.unsupported_platform_error()}
     end
   end
 
@@ -124,36 +124,8 @@ defmodule Orchard.Downloader do
     # Extract the tar.gz file
     case System.cmd("tar", ["-xzf", tar_file, "-C", tmp_extract_dir]) do
       {_, 0} ->
-        # Clean up temp file
         File.rm(tar_file)
-
-        # Find the axe binary in the extracted contents
-        axe_source = find_axe_binary(tmp_extract_dir)
-
-        if axe_source do
-          # Copy the binary to the target location
-          axe_target = Config.executable_path(version)
-          File.cp!(axe_source, axe_target)
-
-          # Copy frameworks if they exist
-          frameworks_source = Path.join(Path.dirname(axe_source), "Frameworks")
-
-          if File.exists?(frameworks_source) do
-            frameworks_target = Path.join(target_dir, "Frameworks")
-            File.cp_r!(frameworks_source, frameworks_target)
-          end
-
-          # Make executable
-          File.chmod(axe_target, 0o755)
-
-          # Clean up temp extraction directory
-          File.rm_rf!(tmp_extract_dir)
-
-          :ok
-        else
-          File.rm_rf!(tmp_extract_dir)
-          {:error, "AXe binary not found in archive"}
-        end
+        process_extracted_files(tmp_extract_dir, target_dir, version)
 
       {error, _} ->
         File.rm(tar_file)
@@ -164,6 +136,37 @@ defmodule Orchard.Downloader do
     e ->
       File.rm(tar_file)
       {:error, "Extraction failed: #{inspect(e)}"}
+  end
+
+  defp process_extracted_files(tmp_extract_dir, target_dir, version) do
+    # Find the axe binary in the extracted contents
+    axe_source = find_axe_binary(tmp_extract_dir)
+
+    if axe_source do
+      install_binary_and_frameworks(axe_source, target_dir, version)
+      File.rm_rf!(tmp_extract_dir)
+      :ok
+    else
+      File.rm_rf!(tmp_extract_dir)
+      {:error, "AXe binary not found in archive"}
+    end
+  end
+
+  defp install_binary_and_frameworks(axe_source, target_dir, version) do
+    # Copy the binary to the target location
+    axe_target = Config.executable_path(version)
+    File.cp!(axe_source, axe_target)
+
+    # Copy frameworks if they exist
+    frameworks_source = Path.join(Path.dirname(axe_source), "Frameworks")
+
+    if File.exists?(frameworks_source) do
+      frameworks_target = Path.join(target_dir, "Frameworks")
+      File.cp_r!(frameworks_source, frameworks_target)
+    end
+
+    # Make executable
+    File.chmod(axe_target, 0o755)
   end
 
   defp find_axe_binary(dir) do

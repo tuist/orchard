@@ -20,7 +20,7 @@ defmodule Orchard.Application do
       # Dynamic supervisor for simulators
       Orchard.SimulatorSupervisor
 
-      # TODO: Add DeviceSupervisor when device support is implemented
+      # Note: DeviceSupervisor will be added when device support is implemented
     ]
 
     opts = [strategy: :one_for_one, name: Orchard.Supervisor]
