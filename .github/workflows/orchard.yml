@@ -58,10 +58,6 @@ jobs:
       - name: Run tests
         run: mix test
 
-      - name: Run Dialyzer
-        run: mix dialyzer
-        continue-on-error: true # Dialyzer might need initial PLT building
-
   credo:
     name: Credo
     runs-on: macos-latest
