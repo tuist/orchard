@@ -75,7 +75,7 @@ config :orchard,
 
 ## Architecture
 
-Orchard uses Erlang/OTP supervision trees to manage simulators:
+Orchard uses Erlang/OTP supervision trees to manage simulators and devices:
 
 - Each booted simulator runs in its own `SimulatorServer` GenServer
 - The `SimulatorSupervisor` manages all simulator processes
