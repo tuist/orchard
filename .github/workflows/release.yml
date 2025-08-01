@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (leave empty for automatic versioning based on commits)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v2
+
+      - name: Check for releasable changes
+        id: check
+        run: |
+          # Get the git cliff output for the changelog
+          CHANGELOG_OUTPUT=$(git cliff --unreleased --strip all --bump || echo "")
+          
+          # Check if CHANGELOG.md exists
+          if [ -f "CHANGELOG.md" ]; then
+            # Get current changelog content without the header
+            CURRENT_CONTENT=$(tail -n +3 CHANGELOG.md 2>/dev/null | head -20 || echo "")
+          else
+            CURRENT_CONTENT=""
+          fi
+          
+          # Get hash of outputs for comparison
+          NEW_HASH=$(echo "$CHANGELOG_OUTPUT" | sha256sum | cut -d' ' -f1)
+          CURRENT_HASH=$(echo "$CURRENT_CONTENT" | sha256sum | cut -d' ' -f1)
+          
+          echo "New hash: $NEW_HASH"
+          echo "Current hash: $CURRENT_HASH"
+          
+          if [ "$NEW_HASH" = "$CURRENT_HASH" ] || [ -z "$CHANGELOG_OUTPUT" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No releasable changes found"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Releasable changes found"
+          fi
+
+      - name: Get next version
+        if: steps.check.outputs.has_changes == 'true'
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            NEXT_VERSION="${{ github.event.inputs.version }}"
+            # Ensure version starts with 'v' for consistency
+            if [[ ! "$NEXT_VERSION" =~ ^v ]]; then
+              NEXT_VERSION="v$NEXT_VERSION"
+            fi
+          else
+            # Get the next version from git cliff
+            NEXT_VERSION=$(git cliff --bumped-version)
+            # Ensure version starts with 'v' for consistency  
+            if [[ ! "$NEXT_VERSION" =~ ^v ]]; then
+              NEXT_VERSION="v$NEXT_VERSION"
+            fi
+          fi
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT_VERSION"
+
+      - name: Update CHANGELOG.md
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git cliff --bump -o CHANGELOG.md
+          git add CHANGELOG.md
+
+      - name: Update version in mix.exs
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          VERSION_WITHOUT_V=$(echo "${{ steps.version.outputs.version }}" | sed 's/^v//')
+          sed -i "s/version: \"[^\"]*\"/version: \"$VERSION_WITHOUT_V\"/" mix.exs
+          git add mix.exs
+
+      - name: Commit changes
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git commit -m "[Release] Orchard ${{ steps.version.outputs.version }}"
+          git push
+
+      - name: Create Release
+        if: steps.check.outputs.has_changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Generate release notes for the specific version
+          RELEASE_NOTES=$(git cliff --latest --strip all)
+          
+          # Create release using GitHub CLI
+          gh release create "${{ steps.version.outputs.version }}" \
+            --title "${{ steps.version.outputs.version }}" \
+            --notes "$RELEASE_NOTES" \
+            --target main
+
+      - name: Publish to Hex
+        if: steps.check.outputs.has_changes == 'true'
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: |
+          mix local.hex --force
+          mix deps.get
+          mix hex.publish --yes
