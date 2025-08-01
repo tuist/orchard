@@ -113,6 +113,17 @@ defmodule Orchard.Simulator do
   end
 
   @doc """
+  Gets the server process for a simulator.
+  """
+  @spec get_server(String.t()) :: {:ok, pid()} | {:error, :not_found}
+  def get_server(udid) do
+    case Registry.lookup(Orchard.SimulatorRegistry, udid) do
+      [{pid, _}] -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Shuts down a simulator.
   """
   @spec shutdown(String.t() | t()) :: :ok | {:error, String.t()}

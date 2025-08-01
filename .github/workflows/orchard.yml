@@ -55,8 +55,16 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Run tests
-        run: mix test
+      - name: Run unit tests
+        run: mix test --exclude integration
+
+      - name: Download AXe binary
+        run: mix orchard.download
+
+      - name: Run integration tests
+        run: mix test --only integration
+        env:
+          CI: true
 
   credo:
     name: Credo
