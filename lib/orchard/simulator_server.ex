@@ -278,49 +278,55 @@ defmodule Orchard.SimulatorServer do
   end
 
   defp perform_tap(udid, x, y) do
-    case MuonTrap.cmd(Config.axe_cmd(), [
-           "tap",
-           "--udid",
-           udid,
-           "--x",
-           to_string(x),
-           "--y",
-           to_string(y)
-         ]) do
-      {_, 0} -> :ok
-      {error, _} -> {:error, error}
+    with :ok <- Downloader.ensure_available() do
+      case MuonTrap.cmd(Config.axe_cmd(), [
+             "tap",
+             "--udid",
+             udid,
+             "--x",
+             to_string(x),
+             "--y",
+             to_string(y)
+           ]) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, error}
+      end
     end
   end
 
   defp type_text_on_simulator(udid, text) do
-    case MuonTrap.cmd(Config.axe_cmd(), ["type", "--udid", udid, "--text", text]) do
-      {_, 0} -> :ok
-      {error, _} -> {:error, error}
+    with :ok <- Downloader.ensure_available() do
+      case MuonTrap.cmd(Config.axe_cmd(), ["type", "--udid", udid, "--text", text]) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, error}
+      end
     end
   end
 
   defp get_simulator_state(udid) do
-    case MuonTrap.cmd(Config.axe_cmd(), ["list-simulators"]) do
-      {output, 0} ->
-        # Parse the output to find our simulator
-        lines = String.split(output, "\n", trim: true)
+    with :ok <- Downloader.ensure_available() do
+      case MuonTrap.cmd(Config.axe_cmd(), ["list-simulators"]) do
+        {output, 0} ->
+          # Parse the output to find our simulator
+          lines = String.split(output, "\n", trim: true)
 
-        simulator_line =
-          Enum.find(lines, fn line ->
-            String.starts_with?(line, udid)
-          end)
+          simulator_line =
+            Enum.find(lines, fn line ->
+              String.starts_with?(line, udid)
+            end)
 
-        if simulator_line do
-          # Parse the state from the line
-          parts = String.split(simulator_line, " | ")
-          state = Enum.at(parts, 2, "Unknown")
-          {:ok, state}
-        else
-          {:error, :not_found}
-        end
+          if simulator_line do
+            # Parse the state from the line
+            parts = String.split(simulator_line, " | ")
+            state = Enum.at(parts, 2, "Unknown")
+            {:ok, state}
+          else
+            {:error, :not_found}
+          end
 
-      {error, _} ->
-        {:error, error}
+        {error, _} ->
+          {:error, error}
+      end
     end
   end
 end
