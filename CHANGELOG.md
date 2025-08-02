@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.6](https://github.com/tuist/orchard/releases/tag/v0.1.6) - 2025-08-02
+### Details
+
+
+#### 🐛 Bug Fixes
+- Resolve credo nested function depth issues ([db89ebc](https://github.com/tuist/orchard/commit/db89ebcbb2cb90c994f7911118f8d353aeaea2dc)) by @pepicrft
 ## [0.1.5](https://github.com/tuist/orchard/releases/tag/v0.1.5) - 2025-08-02
 ### Details
 
