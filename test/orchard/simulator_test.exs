@@ -47,11 +47,12 @@ defmodule Orchard.SimulatorTest do
     end
 
     test "lists available simulators including test simulator", %{test_sim_info: test_sim_info} do
-      test_sim_udid = case test_sim_info do
-        {:created, udid} -> udid
-        {:existing, udid} -> udid
-        nil -> nil
-      end
+      test_sim_udid =
+        case test_sim_info do
+          {:created, udid} -> udid
+          {:existing, udid} -> udid
+          nil -> nil
+        end
 
       if test_sim_udid == nil do
         # Skip test if we couldn't create a test simulator
@@ -75,11 +76,12 @@ defmodule Orchard.SimulatorTest do
 
     test "simulator lifecycle management with test simulator", %{test_sim_info: test_sim_info} do
       # Skip if no test simulator available
-      test_sim_udid = case test_sim_info do
-        {:created, udid} -> udid
-        {:existing, udid} -> udid
-        nil -> nil
-      end
+      test_sim_udid =
+        case test_sim_info do
+          {:created, udid} -> udid
+          {:existing, udid} -> udid
+          nil -> nil
+        end
 
       if test_sim_udid == nil do
         :ok
@@ -130,11 +132,12 @@ defmodule Orchard.SimulatorTest do
     end
 
     test "booted simulators list", %{test_sim_info: test_sim_info} do
-      test_sim_udid = case test_sim_info do
-        {:created, udid} -> udid
-        {:existing, udid} -> udid
-        nil -> nil
-      end
+      test_sim_udid =
+        case test_sim_info do
+          {:created, udid} -> udid
+          {:existing, udid} -> udid
+          nil -> nil
+        end
 
       if test_sim_udid do
         # Boot our test simulator
@@ -182,11 +185,13 @@ defmodule Orchard.SimulatorTest do
     end
 
     test "simulator server monitoring with test simulator", %{test_sim_info: test_sim_info} do
-      test_sim_udid = case test_sim_info do
-        {:created, udid} -> udid
-        {:existing, udid} -> udid
-        nil -> nil
-      end
+      test_sim_udid =
+        case test_sim_info do
+          {:created, udid} -> udid
+          {:existing, udid} -> udid
+          nil -> nil
+        end
+
       if test_sim_udid do
         # Get the test simulator
         {:ok, simulators} = Simulator.list()
@@ -226,7 +231,7 @@ defmodule Orchard.SimulatorTest do
       case find_existing_simulator() do
         {:ok, udid} ->
           {:existing, udid}
-        
+
         :error ->
           # Try to create one
           case create_test_simulator() do
@@ -242,16 +247,18 @@ defmodule Orchard.SimulatorTest do
       {output, 0} ->
         # Find a shutdown iPhone simulator
         lines = String.split(output, "\n")
-        
-        iphone_line = Enum.find(lines, fn line ->
-          String.contains?(line, "iPhone") and 
-          String.contains?(line, "Shutdown") and
-          String.contains?(line, "(")
-        end)
-        
+
+        iphone_line =
+          Enum.find(lines, fn line ->
+            String.contains?(line, "iPhone") and
+              String.contains?(line, "Shutdown") and
+              String.contains?(line, "(")
+          end)
+
         case iphone_line do
-          nil -> 
+          nil ->
             :error
+
           line ->
             # Extract UDID from line like: iPhone 15 (UDID) (Shutdown)
             case Regex.run(~r/\(([A-F0-9-]+)\)/, line) do
@@ -259,7 +266,7 @@ defmodule Orchard.SimulatorTest do
               _ -> :error
             end
         end
-        
+
       _ ->
         :error
     end
