@@ -227,48 +227,15 @@ defmodule Orchard.SimulatorTest do
     if :os.type() != {:unix, :darwin} do
       nil
     else
-      # First try to find an existing iPhone simulator that's shutdown
-      case find_existing_simulator() do
-        {:ok, udid} ->
-          {:existing, udid}
-
-        :error ->
-          # Try to create one
-          case create_test_simulator() do
-            nil -> nil
-            udid -> {:created, udid}
-          end
-      end
+      find_or_create_darwin_simulator()
     end
   end
 
-  defp find_existing_simulator do
-    case System.cmd("xcrun", ["simctl", "list", "devices", "available"], stderr_to_stdout: true) do
-      {output, 0} ->
-        # Find a shutdown iPhone simulator
-        lines = String.split(output, "\n")
-
-        iphone_line =
-          Enum.find(lines, fn line ->
-            String.contains?(line, "iPhone") and
-              String.contains?(line, "Shutdown") and
-              String.contains?(line, "(")
-          end)
-
-        case iphone_line do
-          nil ->
-            :error
-
-          line ->
-            # Extract UDID from line like: iPhone 15 (UDID) (Shutdown)
-            case Regex.run(~r/\(([A-F0-9-]+)\)/, line) do
-              [_, udid] -> {:ok, udid}
-              _ -> :error
-            end
-        end
-
-      _ ->
-        :error
+  defp find_or_create_darwin_simulator do
+    # Always try to create a new test simulator for consistency
+    case create_test_simulator() do
+      nil -> nil
+      udid -> {:created, udid}
     end
   end
 
@@ -294,29 +261,13 @@ defmodule Orchard.SimulatorTest do
   end
 
   defp do_create_test_simulator do
-    # Get available device types and runtimes
-    case System.cmd("xcrun", ["simctl", "list", "devicetypes"]) do
-      {device_types_output, 0} ->
-        case System.cmd("xcrun", ["simctl", "list", "runtimes"]) do
-          {runtimes_output, 0} ->
-            # Find a suitable iPhone device type
-            device_type = find_iphone_device_type(device_types_output)
-
-            # Find a suitable iOS runtime
-            runtime = find_ios_runtime(runtimes_output)
-
-            if device_type && runtime do
-              create_simulator_with_params(device_type, runtime)
-            else
-              nil
-            end
-
-          _ ->
-            nil
-        end
-
-      _ ->
-        nil
+    with {device_types_output, 0} <- System.cmd("xcrun", ["simctl", "list", "devicetypes"]),
+         {runtimes_output, 0} <- System.cmd("xcrun", ["simctl", "list", "runtimes"]),
+         device_type when not is_nil(device_type) <- find_iphone_device_type(device_types_output),
+         runtime when not is_nil(runtime) <- find_ios_runtime(runtimes_output) do
+      create_simulator_with_params(device_type, runtime)
+    else
+      _ -> nil
     end
   end
 
