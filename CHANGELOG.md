@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3](https://github.com/tuist/orchard/releases/tag/v0.1.3) - 2025-08-02
+### Details
+
+
+#### 🐛 Bug Fixes
+- Resolve CI issues with formatting, compilation warnings, and tests ([5b8db99](https://github.com/tuist/orchard/commit/5b8db9967a0e1572852bccda052ca8bf6a34c63c)) by @pepicrft
 ## [0.1.2](https://github.com/tuist/orchard/releases/tag/v0.1.2) - 2025-08-01
 ### Details
 
