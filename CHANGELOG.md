@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.4](https://github.com/tuist/orchard/releases/tag/v0.1.4) - 2025-08-02
+### Details
+
+
+#### 🐛 Bug Fixes
+- Improve simulator test compatibility for CI ([f392d72](https://github.com/tuist/orchard/commit/f392d72dc7780cbb4b9dcc99ab129c23f0407f07)) by @pepicrft
 ## [0.1.3](https://github.com/tuist/orchard/releases/tag/v0.1.3) - 2025-08-02
 ### Details
 
