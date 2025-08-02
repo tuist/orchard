@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.7](https://github.com/tuist/orchard/releases/tag/v0.1.7) - 2025-08-02
+### Details
+
+
+#### 🐛 Bug Fixes
+- Ensure Axe is available before all command executions ([a92f4f7](https://github.com/tuist/orchard/commit/a92f4f77befc3034d239683e191a698d2b2166fb)) by @pepicrft
 ## [0.1.6](https://github.com/tuist/orchard/releases/tag/v0.1.6) - 2025-08-02
 ### Details
 
