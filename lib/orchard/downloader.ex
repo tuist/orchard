@@ -40,6 +40,23 @@ defmodule Orchard.Downloader do
   @doc """
   Checks if AXe is available (either configured path or downloaded).
   """
+  @spec available?() :: boolean()
+  def available? do
+    cond do
+      Config.configured_path() && File.exists?(Config.configured_path()) ->
+        true
+
+      Config.axe_exists?() ->
+        true
+
+      true ->
+        false
+    end
+  end
+
+  @doc """
+  Checks if AXe is available (either configured path or downloaded).
+  """
   @spec ensure_available() :: :ok | {:error, String.t()}
   def ensure_available do
     cond do

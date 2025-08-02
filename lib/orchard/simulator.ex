@@ -130,7 +130,10 @@ defmodule Orchard.Simulator do
   def shutdown(%__MODULE__{udid: udid}) do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->
-        SimulatorServer.shutdown(udid)
+        result = SimulatorServer.shutdown(udid)
+        # Also stop the supervisor to ensure cleanup
+        SimulatorSupervisor.stop_simulator(udid)
+        result
 
       {:error, :not_found} ->
         {:error, "Simulator server not running"}
@@ -251,6 +254,9 @@ defmodule Orchard.Simulator do
     :ok
   end
 
+  # Alias for backwards compatibility
+  def stop_recording(recording_info), do: stop_video_capture(recording_info)
+
   defp parse_simulators(output) do
     output
     |> String.split("\n", trim: true)
@@ -311,5 +317,59 @@ defmodule Orchard.Simulator do
           {:error, "Failed to describe UI: #{error}"}
       end
     end
+  end
+
+  @doc """
+  Starts video capture from the simulator using screenshot-based streaming.
+
+  Note: iOS simulators don't provide real-time video streams. This method captures
+  screenshots at regular intervals and encodes them into a video stream.
+
+  Options:
+  - `:output` - Output path or streaming URL (default: "/tmp/simulator_<udid>.mp4")
+  - `:fps` - Frames per second (default: 30)
+  - `:duration` - Maximum duration in seconds (optional)
+
+  For true real-time streaming, consider using Facebook's idb tool alongside Orchard.
+
+  ## Examples
+
+      iex> {:ok, simulator} = Orchard.Simulator.find_by_name("iPhone 15")
+      iex> {:ok, stream} = Orchard.Simulator.capture_video(simulator, output: "output.mp4", fps: 30)
+      iex> Orchard.Simulator.stop_video_capture(stream)
+      :ok
+  """
+  def capture_video(%__MODULE__{udid: udid}, opts \\ []) do
+    Orchard.SimulatorStream.start_screenshot_stream(udid, opts)
+  end
+
+  @doc """
+  Records video using native simctl recording (file-based only).
+
+  This uses Apple's built-in recording functionality which provides excellent quality
+  but only supports recording to files, not real-time streaming.
+
+  Options:
+  - `:codec` - Video codec: "h264" (default) or "hevc"
+  - `:display` - Display to record: "internal" (default) or "external"
+  - `:mask` - Black mask setting: "ignored" (default) or "black"
+  - `:force` - Force overwrite existing file (default: false)
+
+  ## Examples
+
+      iex> {:ok, recording} = Orchard.Simulator.record_video(simulator, "recording.mp4")
+      iex> Process.sleep(5000)  # Record for 5 seconds
+      iex> Orchard.Simulator.stop_recording(recording)
+      :ok
+  """
+  def record_video(%__MODULE__{udid: udid}, output_path, opts \\ []) do
+    Orchard.SimulatorStream.record_video(udid, output_path, opts)
+  end
+
+  @doc """
+  Stops a video capture or recording process.
+  """
+  def stop_video_capture(capture_info) do
+    Orchard.SimulatorStream.stop_capture(capture_info)
   end
 end

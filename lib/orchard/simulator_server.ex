@@ -138,8 +138,8 @@ defmodule Orchard.SimulatorServer do
   def handle_call(:shutdown, _from, state) do
     case shutdown_simulator(state.udid) do
       :ok ->
-        new_state = %{state | state: "Shutdown"}
-        {:reply, :ok, new_state}
+        # Stop the server after shutting down the simulator
+        {:stop, :normal, :ok, state}
 
       {:error, _reason} = error ->
         {:reply, error, state}
@@ -179,6 +179,15 @@ defmodule Orchard.SimulatorServer do
   def handle_call({:type_text, text}, _from, state) do
     result = type_text_on_simulator(state.udid, text)
     {:reply, result, state}
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    Logger.info(
+      "SimulatorServer for #{state.name} (#{state.udid}) terminating: #{inspect(reason)}"
+    )
+
+    :ok
   end
 
   @impl true
@@ -231,8 +240,16 @@ defmodule Orchard.SimulatorServer do
 
   defp shutdown_simulator(udid) do
     case MuonTrap.cmd("xcrun", ["simctl", "shutdown", udid]) do
-      {_, 0} -> :ok
-      {error, _} -> {:error, error}
+      {_, 0} ->
+        :ok
+
+      {error, exit_code} ->
+        # If the simulator is already shutdown, that's ok
+        if String.contains?(error, "current state: Shutdown") do
+          :ok
+        else
+          {:error, "Exit code #{exit_code}: #{error}"}
+        end
     end
   end
 

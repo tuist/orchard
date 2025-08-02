@@ -33,7 +33,10 @@ defmodule Orchard.SimulatorSupervisor do
   def stop_simulator(udid) do
     case Registry.lookup(Orchard.SimulatorRegistry, udid) do
       [{pid, _}] ->
-        DynamicSupervisor.terminate_child(__MODULE__, pid)
+        result = DynamicSupervisor.terminate_child(__MODULE__, pid)
+        # Give Registry time to clean up
+        Process.sleep(50)
+        result
 
       [] ->
         {:error, :not_found}
