@@ -29,42 +29,58 @@ defmodule Orchard.SimulatorTest do
       Application.stop(:orchard)
       {:ok, _} = Application.ensure_all_started(:orchard)
 
-      # Create a test simulator
-      test_sim_udid = create_test_simulator()
+      # Try to find an existing simulator or create a test one
+      test_sim_info = find_or_create_test_simulator()
 
       on_exit(fn ->
-        # Clean up the test simulator
-        if test_sim_udid do
-          delete_test_simulator(test_sim_udid)
+        # Clean up the test simulator if we created one
+        case test_sim_info do
+          {:created, udid} -> delete_test_simulator(udid)
+          _ -> :ok
         end
 
         # Stop the application
         Application.stop(:orchard)
       end)
 
-      {:ok, test_sim_udid: test_sim_udid}
+      {:ok, test_sim_info: test_sim_info}
     end
 
-    test "lists available simulators including test simulator", %{test_sim_udid: test_sim_udid} do
-      case Simulator.list() do
-        {:ok, simulators} ->
-          assert is_list(simulators)
+    test "lists available simulators including test simulator", %{test_sim_info: test_sim_info} do
+      test_sim_udid = case test_sim_info do
+        {:created, udid} -> udid
+        {:existing, udid} -> udid
+        nil -> nil
+      end
 
-          if test_sim_udid do
+      if test_sim_udid == nil do
+        # Skip test if we couldn't create a test simulator
+        :ok
+      else
+        case Simulator.list() do
+          {:ok, simulators} ->
+            assert is_list(simulators)
+
             # Should find our test simulator
             test_sim = Enum.find(simulators, fn s -> s.udid == test_sim_udid end)
             assert test_sim != nil
             assert test_sim.name =~ "OrchardTest"
-          end
 
-        {:error, reason} ->
-          # On non-macOS systems, this should fail gracefully
-          assert reason =~ "only supported on macOS" or reason =~ "Failed to execute AXe"
+          {:error, reason} ->
+            # On non-macOS systems, this should fail gracefully
+            assert reason =~ "only supported on macOS" or reason =~ "Failed to execute AXe"
+        end
       end
     end
 
-    test "simulator lifecycle management with test simulator", %{test_sim_udid: test_sim_udid} do
-      # Skip if no test simulator was created (non-macOS)
+    test "simulator lifecycle management with test simulator", %{test_sim_info: test_sim_info} do
+      # Skip if no test simulator available
+      test_sim_udid = case test_sim_info do
+        {:created, udid} -> udid
+        {:existing, udid} -> udid
+        nil -> nil
+      end
+
       if test_sim_udid == nil do
         :ok
       else
@@ -113,7 +129,13 @@ defmodule Orchard.SimulatorTest do
       end
     end
 
-    test "booted simulators list", %{test_sim_udid: test_sim_udid} do
+    test "booted simulators list", %{test_sim_info: test_sim_info} do
+      test_sim_udid = case test_sim_info do
+        {:created, udid} -> udid
+        {:existing, udid} -> udid
+        nil -> nil
+      end
+
       if test_sim_udid do
         # Boot our test simulator
         {:ok, simulators} = Simulator.list()
@@ -159,7 +181,12 @@ defmodule Orchard.SimulatorTest do
       end
     end
 
-    test "simulator server monitoring with test simulator", %{test_sim_udid: test_sim_udid} do
+    test "simulator server monitoring with test simulator", %{test_sim_info: test_sim_info} do
+      test_sim_udid = case test_sim_info do
+        {:created, udid} -> udid
+        {:existing, udid} -> udid
+        nil -> nil
+      end
       if test_sim_udid do
         # Get the test simulator
         {:ok, simulators} = Simulator.list()
@@ -190,6 +217,54 @@ defmodule Orchard.SimulatorTest do
     end
   end
 
+  # Helper function to find an existing simulator or create a new one
+  defp find_or_create_test_simulator do
+    if :os.type() != {:unix, :darwin} do
+      nil
+    else
+      # First try to find an existing iPhone simulator that's shutdown
+      case find_existing_simulator() do
+        {:ok, udid} ->
+          {:existing, udid}
+        
+        :error ->
+          # Try to create one
+          case create_test_simulator() do
+            nil -> nil
+            udid -> {:created, udid}
+          end
+      end
+    end
+  end
+
+  defp find_existing_simulator do
+    case System.cmd("xcrun", ["simctl", "list", "devices", "available"], stderr_to_stdout: true) do
+      {output, 0} ->
+        # Find a shutdown iPhone simulator
+        lines = String.split(output, "\n")
+        
+        iphone_line = Enum.find(lines, fn line ->
+          String.contains?(line, "iPhone") and 
+          String.contains?(line, "Shutdown") and
+          String.contains?(line, "(")
+        end)
+        
+        case iphone_line do
+          nil -> 
+            :error
+          line ->
+            # Extract UDID from line like: iPhone 15 (UDID) (Shutdown)
+            case Regex.run(~r/\(([A-F0-9-]+)\)/, line) do
+              [_, udid] -> {:ok, udid}
+              _ -> :error
+            end
+        end
+        
+      _ ->
+        :error
+    end
+  end
+
   # Helper function to wait for a process to die
   defp wait_for_process_death(pid, timeout) when timeout > 0 do
     if Process.alive?(pid) do
@@ -213,19 +288,28 @@ defmodule Orchard.SimulatorTest do
 
   defp do_create_test_simulator do
     # Get available device types and runtimes
-    {device_types_output, 0} = System.cmd("xcrun", ["simctl", "list", "devicetypes"])
-    {runtimes_output, 0} = System.cmd("xcrun", ["simctl", "list", "runtimes"])
+    case System.cmd("xcrun", ["simctl", "list", "devicetypes"]) do
+      {device_types_output, 0} ->
+        case System.cmd("xcrun", ["simctl", "list", "runtimes"]) do
+          {runtimes_output, 0} ->
+            # Find a suitable iPhone device type
+            device_type = find_iphone_device_type(device_types_output)
 
-    # Find a suitable iPhone device type
-    device_type = find_iphone_device_type(device_types_output)
+            # Find a suitable iOS runtime
+            runtime = find_ios_runtime(runtimes_output)
 
-    # Find a suitable iOS runtime
-    runtime = find_ios_runtime(runtimes_output)
+            if device_type && runtime do
+              create_simulator_with_params(device_type, runtime)
+            else
+              nil
+            end
 
-    if device_type && runtime do
-      create_simulator_with_params(device_type, runtime)
-    else
-      nil
+          _ ->
+            nil
+        end
+
+      _ ->
+        nil
     end
   end
 
@@ -253,7 +337,7 @@ defmodule Orchard.SimulatorTest do
   end
 
   defp find_iphone_device_type(output) do
-    # Look for iPhone device types in the output
+    # Find any available iPhone device type
     # Example: iPhone 15 (com.apple.CoreSimulator.SimDeviceType.iPhone-15)
     case Regex.run(
            ~r/iPhone[^\(]+\((com\.apple\.CoreSimulator\.SimDeviceType\.iPhone[^\)]+)\)/,
@@ -265,7 +349,7 @@ defmodule Orchard.SimulatorTest do
   end
 
   defp find_ios_runtime(output) do
-    # Look for iOS runtimes in the output
+    # Find any available iOS runtime
     # Example: iOS 17.5 (17.5 - 21F79) - com.apple.CoreSimulator.SimRuntime.iOS-17-5
     case Regex.run(
            ~r/iOS[^\(]+\([^\)]+\)[^c]+(com\.apple\.CoreSimulator\.SimRuntime\.iOS[^\s]+)/,
