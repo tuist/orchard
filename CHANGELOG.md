@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5](https://github.com/tuist/orchard/releases/tag/v0.1.5) - 2025-08-02
+### Details
+
+
+#### 🐛 Bug Fixes
+- Code formatting ([b678c87](https://github.com/tuist/orchard/commit/b678c87449c248b5b10453e8ab532f03d734b7db)) by @pepicrft
 ## [0.1.4](https://github.com/tuist/orchard/releases/tag/v0.1.4) - 2025-08-02
 ### Details
 
