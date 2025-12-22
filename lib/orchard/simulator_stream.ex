@@ -256,7 +256,7 @@ defmodule Orchard.SimulatorStream do
             {:args, args},
             :binary,
             :exit_status,
-            {:line, 65536}
+            {:line, 65_536}
           ])
 
         output_file = File.open!(output, [:write, :binary])
