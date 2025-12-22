@@ -305,6 +305,190 @@ defmodule Orchard.Simulator do
   end
 
   @doc """
+  Performs a tap on an element with the given accessibility ID.
+
+  This is more reliable than coordinate-based taps as it automatically
+  finds the element regardless of screen position.
+
+  Available since AXe 1.2.0.
+
+  ## Options
+
+  - `:pre_delay` - Delay in seconds before the tap (default: none)
+  - `:post_delay` - Delay in seconds after the tap (default: none)
+
+  ## Examples
+
+      iex> Orchard.Simulator.tap_accessibility_id(simulator, "loginButton")
+      :ok
+
+      iex> Orchard.Simulator.tap_accessibility_id(simulator, "submitBtn", pre_delay: 0.5)
+      :ok
+  """
+  @spec tap_accessibility_id(t(), String.t(), keyword()) :: :ok | {:error, String.t()}
+  def tap_accessibility_id(%__MODULE__{udid: udid}, accessibility_id, opts \\ []) do
+    case SimulatorSupervisor.find_simulator(udid) do
+      {:ok, _pid} ->
+        SimulatorServer.tap_accessibility_id(udid, accessibility_id, opts)
+
+      {:error, :not_found} ->
+        {:error, "Simulator server not running"}
+    end
+  end
+
+  @doc """
+  Performs a tap on an element with the given accessibility label.
+
+  This is more reliable than coordinate-based taps as it automatically
+  finds the element regardless of screen position.
+
+  Available since AXe 1.2.0.
+
+  ## Options
+
+  - `:pre_delay` - Delay in seconds before the tap (default: none)
+  - `:post_delay` - Delay in seconds after the tap (default: none)
+
+  ## Examples
+
+      iex> Orchard.Simulator.tap_label(simulator, "Sign In")
+      :ok
+
+      iex> Orchard.Simulator.tap_label(simulator, "Submit", post_delay: 1.0)
+      :ok
+  """
+  @spec tap_label(t(), String.t(), keyword()) :: :ok | {:error, String.t()}
+  def tap_label(%__MODULE__{udid: udid}, label, opts \\ []) do
+    case SimulatorSupervisor.find_simulator(udid) do
+      {:ok, _pid} ->
+        SimulatorServer.tap_label(udid, label, opts)
+
+      {:error, :not_found} ->
+        {:error, "Simulator server not running"}
+    end
+  end
+
+  @doc """
+  Performs a swipe gesture on the simulator.
+
+  ## Options
+
+  - `:duration` - Duration of the swipe in seconds (default: system default)
+  - `:delta` - Step size for the swipe motion (default: system default)
+  - `:pre_delay` - Delay in seconds before the swipe (default: none)
+  - `:post_delay` - Delay in seconds after the swipe (default: none)
+
+  ## Examples
+
+      iex> Orchard.Simulator.swipe(simulator, 100, 500, 100, 100)
+      :ok
+
+      iex> Orchard.Simulator.swipe(simulator, 50, 500, 350, 500, duration: 2.0)
+      :ok
+  """
+  @spec swipe(t(), number(), number(), number(), number(), keyword()) :: :ok | {:error, String.t()}
+  def swipe(%__MODULE__{udid: udid}, start_x, start_y, end_x, end_y, opts \\ []) do
+    case SimulatorSupervisor.find_simulator(udid) do
+      {:ok, _pid} ->
+        SimulatorServer.swipe(udid, start_x, start_y, end_x, end_y, opts)
+
+      {:error, :not_found} ->
+        {:error, "Simulator server not running"}
+    end
+  end
+
+  @doc """
+  Performs a preset gesture on the simulator.
+
+  ## Available gestures
+
+  - `:scroll_up` - Scroll up gesture
+  - `:scroll_down` - Scroll down gesture
+  - `:scroll_left` - Scroll left gesture
+  - `:scroll_right` - Scroll right gesture
+  - `:swipe_from_left_edge` - Swipe from left edge (back navigation)
+  - `:swipe_from_right_edge` - Swipe from right edge
+  - `:swipe_from_top_edge` - Swipe from top edge (notification center)
+  - `:swipe_from_bottom_edge` - Swipe from bottom edge (control center/home)
+
+  ## Options
+
+  - `:screen_width` - Custom screen width (default: auto-detected)
+  - `:screen_height` - Custom screen height (default: auto-detected)
+  - `:pre_delay` - Delay in seconds before the gesture (default: none)
+  - `:post_delay` - Delay in seconds after the gesture (default: none)
+
+  ## Examples
+
+      iex> Orchard.Simulator.gesture(simulator, :scroll_down)
+      :ok
+
+      iex> Orchard.Simulator.gesture(simulator, :swipe_from_left_edge)
+      :ok
+  """
+  @spec gesture(t(), atom() | String.t(), keyword()) :: :ok | {:error, String.t()}
+  def gesture(%__MODULE__{udid: udid}, gesture_name, opts \\ []) do
+    case SimulatorSupervisor.find_simulator(udid) do
+      {:ok, _pid} ->
+        # Convert atom to string with dashes
+        gesture_str =
+          gesture_name
+          |> to_string()
+          |> String.replace("_", "-")
+
+        SimulatorServer.gesture(udid, gesture_str, opts)
+
+      {:error, :not_found} ->
+        {:error, "Simulator server not running"}
+    end
+  end
+
+  @doc """
+  Simulates pressing a hardware button on the simulator.
+
+  ## Available buttons
+
+  - `:home` - Home button
+  - `:lock` - Lock/power button
+  - `:side_button` - Side button (iPhone X and later)
+  - `:siri` - Siri button
+  - `:apple_pay` - Apple Pay button
+
+  ## Options
+
+  - `:duration` - Button press duration in seconds (useful for lock button)
+  - `:pre_delay` - Delay in seconds before the button press (default: none)
+  - `:post_delay` - Delay in seconds after the button press (default: none)
+
+  ## Examples
+
+      iex> Orchard.Simulator.button(simulator, :home)
+      :ok
+
+      iex> Orchard.Simulator.button(simulator, :lock, duration: 2.0)
+      :ok
+
+      iex> Orchard.Simulator.button(simulator, :siri)
+      :ok
+  """
+  @spec button(t(), atom() | String.t(), keyword()) :: :ok | {:error, String.t()}
+  def button(%__MODULE__{udid: udid}, button_name, opts \\ []) do
+    case SimulatorSupervisor.find_simulator(udid) do
+      {:ok, _pid} ->
+        # Convert atom to string with dashes
+        button_str =
+          button_name
+          |> to_string()
+          |> String.replace("_", "-")
+
+        SimulatorServer.button(udid, button_str, opts)
+
+      {:error, :not_found} ->
+        {:error, "Simulator server not running"}
+    end
+  end
+
+  @doc """
   Gets UI hierarchy description from AXe
   """
   def describe_ui(%__MODULE__{udid: udid}) do
@@ -341,6 +525,67 @@ defmodule Orchard.Simulator do
   """
   def capture_video(%__MODULE__{udid: udid}, opts \\ []) do
     Orchard.SimulatorStream.start_screenshot_stream(udid, opts)
+  end
+
+  @doc """
+  Starts video streaming using AXe's native stream-video command.
+
+  Available since AXe 1.1.0. This provides high-performance video streaming
+  with multiple output formats.
+
+  ## Options
+
+  - `:fps` - Frames per second, 1-30 (default: 10)
+  - `:format` - Output format: `:mjpeg`, `:raw`, `:ffmpeg`, `:bgra` (default: `:mjpeg`)
+  - `:output` - Output file path (optional, streams to stdout if not specified)
+
+  ## Formats
+
+  - `:mjpeg` - MJPEG format, suitable for direct playback
+  - `:raw` - Raw JPEG frames
+  - `:ffmpeg` - FFmpeg-compatible output for piping to ffmpeg
+  - `:bgra` - Legacy BGRA pixel format
+
+  ## Examples
+
+      iex> {:ok, stream} = Orchard.Simulator.stream_video(simulator, fps: 15, output: "stream.mjpeg")
+      iex> Orchard.Simulator.stop_video_capture(stream)
+      :ok
+
+      iex> {:ok, stream} = Orchard.Simulator.stream_video(simulator, format: :ffmpeg, fps: 30)
+      :ok
+  """
+  @spec stream_video(t(), keyword()) :: {:ok, map()} | {:error, String.t()}
+  def stream_video(%__MODULE__{udid: udid}, opts \\ []) do
+    Orchard.SimulatorStream.start_axe_stream(udid, opts)
+  end
+
+  @doc """
+  Records video directly to MP4 using AXe's native record-video command.
+
+  Available since AXe 1.1.0. This provides direct H.264 encoding to MP4 files
+  with configurable quality and scaling options.
+
+  ## Options
+
+  - `:fps` - Frames per second (default: 15)
+  - `:quality` - JPEG quality 1-100 (default: system default)
+  - `:scale` - Scale factor 0.0-1.0 (default: 1.0, full resolution)
+
+  ## Examples
+
+      iex> {:ok, recording} = Orchard.Simulator.record_video_axe(simulator, "output.mp4", fps: 20)
+      iex> Process.sleep(5000)  # Record for 5 seconds
+      iex> Orchard.Simulator.stop_video_capture(recording)
+      :ok
+
+      iex> {:ok, recording} = Orchard.Simulator.record_video_axe(simulator, "output.mp4",
+      ...>   fps: 10, quality: 60, scale: 0.5)
+      :ok
+  """
+  @spec record_video_axe(t(), String.t(), keyword()) :: {:ok, map()} | {:error, String.t()}
+  def record_video_axe(%__MODULE__{udid: udid}, output_path, opts \\ []) do
+    Orchard.SimulatorStream.start_axe_recording(udid, output_path, opts)
   end
 
   @doc """

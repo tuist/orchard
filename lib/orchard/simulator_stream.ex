@@ -2,21 +2,25 @@ defmodule Orchard.SimulatorStream do
   @moduledoc """
   Provides video capture capabilities for iOS simulators.
 
-  Since iOS simulators don't expose real-time video streams, this module provides
-  two approaches:
+  This module provides multiple approaches for video capture:
 
-  1. **Screenshot-based streaming**: Captures screenshots at intervals and encodes
-     them into a video stream. Good for basic use cases but has performance limitations.
+  1. **AXe stream-video** (v1.1.0+): Native video streaming at 1-30 FPS with multiple
+     output formats (MJPEG, raw JPEG, ffmpeg-compatible, BGRA).
 
-  2. **Window capture via FFmpeg**: Uses FFmpeg's AVFoundation to capture the
-     simulator window directly. Better performance but requires knowing the window title.
+  2. **AXe record-video** (v1.1.0+): Direct MP4 recording with H.264 encoding.
 
-  For production use cases requiring true real-time streaming, consider:
-  - Facebook's idb tool which can access the simulator's IOSurface
-  - Custom ScreenCaptureKit implementation (macOS 12.3+)
+  3. **Screenshot-based streaming**: Captures screenshots at intervals and encodes
+     them into a video stream. Legacy fallback approach.
+
+  4. **Window capture via FFmpeg**: Uses FFmpeg's AVFoundation to capture the
+     simulator window directly.
+
+  The AXe-based methods are recommended for better performance and reliability.
   """
 
   require Logger
+
+  alias Orchard.{Config, Downloader}
 
   @doc """
   Starts screenshot-based video streaming from a simulator.
@@ -191,8 +195,171 @@ defmodule Orchard.SimulatorStream do
   end
 
   @doc """
+  Starts video streaming using AXe's stream-video command.
+
+  Available since AXe 1.1.0. This provides native video streaming with multiple
+  output formats and better performance than screenshot-based approaches.
+
+  ## Options
+
+  - `:fps` - Frames per second, 1-30 (default: 10)
+  - `:format` - Output format: `:mjpeg`, `:raw`, `:ffmpeg`, `:bgra` (default: `:mjpeg`)
+  - `:output` - Output file path or stream destination (default: streams to stdout)
+
+  ## Formats
+
+  - `:mjpeg` - MJPEG format, suitable for direct playback
+  - `:raw` - Raw JPEG frames
+  - `:ffmpeg` - FFmpeg-compatible output for piping to ffmpeg
+  - `:bgra` - Legacy BGRA pixel format
+
+  ## Examples
+
+      # Stream to file in MJPEG format
+      {:ok, stream} = Orchard.SimulatorStream.start_axe_stream(udid, fps: 15, output: "stream.mjpeg")
+
+      # Stream for FFmpeg processing
+      {:ok, stream} = Orchard.SimulatorStream.start_axe_stream(udid, format: :ffmpeg, fps: 30)
+
+      # Stop the stream
+      Orchard.SimulatorStream.stop_capture(stream)
+  """
+  def start_axe_stream(simulator_udid, opts \\ []) do
+    with :ok <- Downloader.ensure_available() do
+      fps = Keyword.get(opts, :fps, 10)
+      format = Keyword.get(opts, :format, :mjpeg)
+      output = Keyword.get(opts, :output)
+
+      format_str =
+        case format do
+          :mjpeg -> "mjpeg"
+          :raw -> "raw"
+          :ffmpeg -> "ffmpeg"
+          :bgra -> "bgra"
+          other -> to_string(other)
+        end
+
+      args = [
+        "stream-video",
+        "--udid",
+        simulator_udid,
+        "--fps",
+        to_string(fps),
+        "--format",
+        format_str
+      ]
+
+      if output do
+        # Start as daemon writing to file
+        port =
+          Port.open({:spawn_executable, Config.axe_cmd()}, [
+            {:args, args},
+            :binary,
+            :exit_status,
+            {:line, 65536}
+          ])
+
+        output_file = File.open!(output, [:write, :binary])
+
+        # Start a task to read from port and write to file
+        task =
+          Task.async(fn ->
+            stream_to_file(port, output_file)
+          end)
+
+        {:ok, %{port: port, task: task, output: output, output_file: output_file, method: :axe_stream}}
+      else
+        # Start as daemon for raw output
+        case MuonTrap.Daemon.start_link(Config.axe_cmd(), args) do
+          {:ok, pid} ->
+            {:ok, %{pid: pid, method: :axe_stream}}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+      end
+    end
+  end
+
+  @doc """
+  Records video directly to MP4 using AXe's record-video command.
+
+  Available since AXe 1.1.0. This provides direct H.264 encoding to MP4 files
+  with configurable quality and scaling options.
+
+  ## Options
+
+  - `:fps` - Frames per second (default: 15)
+  - `:quality` - JPEG quality 1-100 (default: system default)
+  - `:scale` - Scale factor 0.0-1.0 (default: 1.0, full resolution)
+
+  ## Examples
+
+      # Start recording
+      {:ok, recording} = Orchard.SimulatorStream.start_axe_recording(udid, "output.mp4", fps: 20)
+
+      # Record with reduced quality for smaller file size
+      {:ok, recording} = Orchard.SimulatorStream.start_axe_recording(udid, "output.mp4",
+        fps: 10, quality: 60, scale: 0.5)
+
+      # Stop recording
+      Orchard.SimulatorStream.stop_capture(recording)
+  """
+  def start_axe_recording(simulator_udid, output_path, opts \\ []) do
+    with :ok <- Downloader.ensure_available() do
+      fps = Keyword.get(opts, :fps, 15)
+
+      args = [
+        "record-video",
+        "--udid",
+        simulator_udid,
+        "--fps",
+        to_string(fps),
+        "--output",
+        output_path
+      ]
+
+      args =
+        if quality = Keyword.get(opts, :quality) do
+          args ++ ["--quality", to_string(quality)]
+        else
+          args
+        end
+
+      args =
+        if scale = Keyword.get(opts, :scale) do
+          args ++ ["--scale", to_string(scale)]
+        else
+          args
+        end
+
+      case MuonTrap.Daemon.start_link(Config.axe_cmd(), args) do
+        {:ok, pid} ->
+          {:ok, %{pid: pid, output: output_path, method: :axe_record}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
   Stops a video capture/recording process.
   """
+  def stop_capture(%{port: port, output_file: output_file} = capture) when is_port(port) do
+    Port.close(port)
+
+    if output_file do
+      File.close(output_file)
+    end
+
+    if task = Map.get(capture, :task) do
+      Task.shutdown(task, :brutal_kill)
+    end
+
+    :ok
+  end
+
   def stop_capture(%{port: port}) when is_port(port) do
     Port.close(port)
     :ok
@@ -206,6 +373,31 @@ defmodule Orchard.SimulatorStream do
   def stop_capture(%{task: task}) do
     Task.shutdown(task, :brutal_kill)
     :ok
+  end
+
+  defp stream_to_file(port, output_file) do
+    receive do
+      {^port, {:data, {:eol, data}}} ->
+        IO.binwrite(output_file, data)
+        IO.binwrite(output_file, "\n")
+        stream_to_file(port, output_file)
+
+      {^port, {:data, {:noeol, data}}} ->
+        IO.binwrite(output_file, data)
+        stream_to_file(port, output_file)
+
+      {^port, {:data, data}} when is_binary(data) ->
+        IO.binwrite(output_file, data)
+        stream_to_file(port, output_file)
+
+      {^port, {:exit_status, _status}} ->
+        File.close(output_file)
+        :ok
+
+      {^port, :closed} ->
+        File.close(output_file)
+        :ok
+    end
   end
 
   # Private functions

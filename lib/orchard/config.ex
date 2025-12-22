@@ -8,7 +8,7 @@ defmodule Orchard.Config do
   @external_resource "priv/axe/versions.json"
   @versions File.read!("priv/axe/versions.json") |> Jason.decode!()
 
-  @default_version "1.0.0"
+  @default_version "1.2.1"
 
   @doc """
   Returns the default AXe version.
