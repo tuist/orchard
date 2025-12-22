@@ -386,7 +386,8 @@ defmodule Orchard.Simulator do
       iex> Orchard.Simulator.swipe(simulator, 50, 500, 350, 500, duration: 2.0)
       :ok
   """
-  @spec swipe(t(), number(), number(), number(), number(), keyword()) :: :ok | {:error, String.t()}
+  @spec swipe(t(), number(), number(), number(), number(), keyword()) ::
+          :ok | {:error, String.t()}
   def swipe(%__MODULE__{udid: udid}, start_x, start_y, end_x, end_y, opts \\ []) do
     case SimulatorSupervisor.find_simulator(udid) do
       {:ok, _pid} ->

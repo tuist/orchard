@@ -267,7 +267,8 @@ defmodule Orchard.SimulatorStream do
             stream_to_file(port, output_file)
           end)
 
-        {:ok, %{port: port, task: task, output: output, output_file: output_file, method: :axe_stream}}
+        {:ok,
+         %{port: port, task: task, output: output, output_file: output_file, method: :axe_stream}}
       else
         # Start as daemon for raw output
         case MuonTrap.Daemon.start_link(Config.axe_cmd(), args) do
