@@ -1,4 +1,44 @@
 {
+  "1.2.1": {
+    "macOS-arm64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.2.1/AXe-macOS-v1.2.1.tar.gz",
+      "checksum": null
+    },
+    "macOS-x86_64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.2.1/AXe-macOS-v1.2.1.tar.gz",
+      "checksum": null
+    }
+  },
+  "1.2.0": {
+    "macOS-arm64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.2.0/AXe-macOS-v1.2.0.tar.gz",
+      "checksum": null
+    },
+    "macOS-x86_64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.2.0/AXe-macOS-v1.2.0.tar.gz",
+      "checksum": null
+    }
+  },
+  "1.1.1": {
+    "macOS-arm64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.1.1/AXe-macOS-v1.1.1.tar.gz",
+      "checksum": null
+    },
+    "macOS-x86_64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.1.1/AXe-macOS-v1.1.1.tar.gz",
+      "checksum": null
+    }
+  },
+  "1.1.0": {
+    "macOS-arm64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.1.0/AXe-macOS-v1.1.0.tar.gz",
+      "checksum": null
+    },
+    "macOS-x86_64": {
+      "url": "https://github.com/cameroncooke/AXe/releases/download/v1.1.0/AXe-macOS-v1.1.0.tar.gz",
+      "checksum": null
+    }
+  },
   "1.0.0": {
     "macOS-arm64": {
       "url": "https://github.com/cameroncooke/AXe/releases/download/v1.0.0/AXe-macOS-v1.0.0.tar.gz",

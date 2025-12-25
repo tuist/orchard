@@ -93,6 +93,41 @@ defmodule Orchard.SimulatorServer do
     GenServer.call(via_tuple(udid), {:type_text, text})
   end
 
+  @doc """
+  Performs a tap at an element with the given accessibility ID.
+  """
+  def tap_accessibility_id(udid, accessibility_id, opts \\ []) do
+    GenServer.call(via_tuple(udid), {:tap_accessibility_id, accessibility_id, opts})
+  end
+
+  @doc """
+  Performs a tap at an element with the given label.
+  """
+  def tap_label(udid, label, opts \\ []) do
+    GenServer.call(via_tuple(udid), {:tap_label, label, opts})
+  end
+
+  @doc """
+  Performs a swipe gesture on the simulator.
+  """
+  def swipe(udid, start_x, start_y, end_x, end_y, opts \\ []) do
+    GenServer.call(via_tuple(udid), {:swipe, start_x, start_y, end_x, end_y, opts})
+  end
+
+  @doc """
+  Performs a preset gesture on the simulator.
+  """
+  def gesture(udid, gesture_name, opts \\ []) do
+    GenServer.call(via_tuple(udid), {:gesture, gesture_name, opts})
+  end
+
+  @doc """
+  Simulates pressing a hardware button on the simulator.
+  """
+  def button(udid, button_name, opts \\ []) do
+    GenServer.call(via_tuple(udid), {:button, button_name, opts})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -178,6 +213,36 @@ defmodule Orchard.SimulatorServer do
   @impl true
   def handle_call({:type_text, text}, _from, state) do
     result = type_text_on_simulator(state.udid, text)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:tap_accessibility_id, accessibility_id, opts}, _from, state) do
+    result = perform_tap_accessibility_id(state.udid, accessibility_id, opts)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:tap_label, label, opts}, _from, state) do
+    result = perform_tap_label(state.udid, label, opts)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:swipe, start_x, start_y, end_x, end_y, opts}, _from, state) do
+    result = perform_swipe(state.udid, start_x, start_y, end_x, end_y, opts)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:gesture, gesture_name, opts}, _from, state) do
+    result = perform_gesture(state.udid, gesture_name, opts)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:button, button_name, opts}, _from, state) do
+    result = perform_button(state.udid, button_name, opts)
     {:reply, result, state}
   end
 
@@ -270,10 +335,12 @@ defmodule Orchard.SimulatorServer do
   end
 
   defp take_screenshot(udid, output_path) do
-    # Note: AXe doesn't have a screenshot command, we'll use simctl directly
-    case MuonTrap.cmd("xcrun", ["simctl", "io", udid, "screenshot", output_path]) do
-      {_, 0} -> :ok
-      {error, _} -> {:error, error}
+    # Use AXe screenshot command (available in 1.2.0+)
+    with :ok <- Downloader.ensure_available() do
+      case MuonTrap.cmd(Config.axe_cmd(), ["screenshot", "--udid", udid, "--output", output_path]) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, "Failed to take screenshot: #{error}"}
+      end
     end
   end
 
@@ -327,6 +394,131 @@ defmodule Orchard.SimulatorServer do
         {error, _} ->
           {:error, error}
       end
+    end
+  end
+
+  defp perform_tap_accessibility_id(udid, accessibility_id, opts) do
+    with :ok <- Downloader.ensure_available() do
+      args = ["tap", "--udid", udid, "--id", accessibility_id]
+      args = add_delay_opts(args, opts)
+
+      case MuonTrap.cmd(Config.axe_cmd(), args) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, "Failed to tap accessibility ID '#{accessibility_id}': #{error}"}
+      end
+    end
+  end
+
+  defp perform_tap_label(udid, label, opts) do
+    with :ok <- Downloader.ensure_available() do
+      args = ["tap", "--udid", udid, "--label", label]
+      args = add_delay_opts(args, opts)
+
+      case MuonTrap.cmd(Config.axe_cmd(), args) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, "Failed to tap label '#{label}': #{error}"}
+      end
+    end
+  end
+
+  defp perform_swipe(udid, start_x, start_y, end_x, end_y, opts) do
+    with :ok <- Downloader.ensure_available() do
+      args = [
+        "swipe",
+        "--udid",
+        udid,
+        "--start-x",
+        to_string(start_x),
+        "--start-y",
+        to_string(start_y),
+        "--end-x",
+        to_string(end_x),
+        "--end-y",
+        to_string(end_y)
+      ]
+
+      args =
+        if duration = Keyword.get(opts, :duration) do
+          args ++ ["--duration", to_string(duration)]
+        else
+          args
+        end
+
+      args =
+        if delta = Keyword.get(opts, :delta) do
+          args ++ ["--delta", to_string(delta)]
+        else
+          args
+        end
+
+      args = add_delay_opts(args, opts)
+
+      case MuonTrap.cmd(Config.axe_cmd(), args) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, "Failed to perform swipe: #{error}"}
+      end
+    end
+  end
+
+  defp perform_gesture(udid, gesture_name, opts) do
+    with :ok <- Downloader.ensure_available() do
+      args = ["gesture", to_string(gesture_name), "--udid", udid]
+
+      args =
+        if screen_width = Keyword.get(opts, :screen_width) do
+          args ++ ["--screen-width", to_string(screen_width)]
+        else
+          args
+        end
+
+      args =
+        if screen_height = Keyword.get(opts, :screen_height) do
+          args ++ ["--screen-height", to_string(screen_height)]
+        else
+          args
+        end
+
+      args = add_delay_opts(args, opts)
+
+      case MuonTrap.cmd(Config.axe_cmd(), args) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, "Failed to perform gesture '#{gesture_name}': #{error}"}
+      end
+    end
+  end
+
+  defp perform_button(udid, button_name, opts) do
+    with :ok <- Downloader.ensure_available() do
+      args = ["button", to_string(button_name), "--udid", udid]
+
+      args =
+        if duration = Keyword.get(opts, :duration) do
+          args ++ ["--duration", to_string(duration)]
+        else
+          args
+        end
+
+      args = add_delay_opts(args, opts)
+
+      case MuonTrap.cmd(Config.axe_cmd(), args) do
+        {_, 0} -> :ok
+        {error, _} -> {:error, "Failed to press button '#{button_name}': #{error}"}
+      end
+    end
+  end
+
+  defp add_delay_opts(args, opts) do
+    args =
+      if pre_delay = Keyword.get(opts, :pre_delay) do
+        args ++ ["--pre-delay", to_string(pre_delay)]
+      else
+        args
+      end
+
+    if post_delay = Keyword.get(opts, :post_delay) do
+      args ++ ["--post-delay", to_string(post_delay)]
+    else
+      args
     end
   end
 end
